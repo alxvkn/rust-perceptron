@@ -1,23 +1,26 @@
 use std::ops::{AddAssign, Mul};
 
-use rand::prelude::Distribution;
-use rand::distr::StandardUniform;
 use num_traits::Float;
+use rand::distr::StandardUniform;
+use rand::prelude::Distribution;
 
-struct Perceptron<FType, const NLAYERS: usize, const NINPUTS: usize> where FType: Float {
+struct Perceptron<FType, const NLAYERS: usize, const NINPUTS: usize>
+where
+    FType: Float,
+{
     weights: [[FType; NINPUTS]; NLAYERS], // TODO: layers are not used at all, only the first one
-    bias: FType
+    bias: FType,
 }
 
 impl<FType, const NLAYERS: usize, const NINPUTS: usize> Perceptron<FType, NLAYERS, NINPUTS>
 where
-    FType: Float + AddAssign + Mul<FType, Output = FType>,
-    StandardUniform: Distribution<FType>
+    FType: Float + AddAssign + Mul<FType, Output = FType> + std::fmt::Display,
+    StandardUniform: Distribution<FType>,
 {
     fn new(weights: [[FType; NINPUTS]; NLAYERS], bias: FType) -> Self {
-        return Perceptron {
-            weights: weights,
-            bias: bias,
+        Perceptron {
+            weights,
+            bias,
         }
     }
 
@@ -25,21 +28,37 @@ where
         net_input
     }
 
-    fn fit(&mut self, inputs: Vec<[FType; NINPUTS]>, targets: Vec<FType>, iterations: u32) {
+    fn fit(&mut self, examples: &Vec<[FType; NINPUTS]>, targets: &Vec<FType>, iterations: u32) {
         self.bias = rand::random::<FType>().into();
 
-        for _ in 0..iterations {
-            for inputs_index in 0..inputs.len() {
+        for layer in &mut self.weights {
+            for weight in layer {
+                *weight = rand::random::<FType>().into();
+            }
+        }
+
+        for i in 0..iterations {
+            // std::thread::sleep(std::time::Duration::from_millis(2));
+
+            for (example, &target) in examples.iter().zip(targets) {
                 let mut net_input = self.bias;
-                for i in 0..NINPUTS {
-                    net_input += inputs[inputs_index][i] * self.weights[0][i];
+
+                for (&input, weight) in example.iter().zip(self.weights[0]) {
+                    net_input += input * weight;
                 }
 
                 let prediction = self.activation_function(net_input);
+                let error = target - prediction;
+                println!("error = {error:+}");
+                if error == FType::from(0.).unwrap() {
+                    println!("got zero error at iteration #{i}");
+                    return;
+                }
 
-                for i in 0..NINPUTS {
-                    let weight_correction = (targets[inputs_index] - prediction) * FType::from(0.01).unwrap();
-                    self.weights[0][i] += weight_correction * inputs[inputs_index][i];
+                for (&input, weight) in example.iter().zip(&mut self.weights[0]) {
+                    let learning_rate = 0.01;
+                    let weight_correction = error * FType::from(learning_rate).unwrap();
+                    *weight += weight_correction * input;
                     self.bias += weight_correction;
                 }
             }
@@ -49,8 +68,8 @@ where
     fn predict(&self, inputs: [FType; NINPUTS]) -> FType {
         let mut net_input = self.bias;
 
-        for i in 0..inputs.len() {
-            net_input += inputs[i] * self.weights[0][i];
+        for (&input, weight) in inputs.iter().zip(self.weights[0]) {
+            net_input += input * weight;
         }
 
         return self.activation_function(net_input);
@@ -58,28 +77,31 @@ where
 }
 
 fn main() {
-    let mut p = Perceptron::<f64, 1, 3>::new([[0., 0., 0.]], 0.);
-    p.fit(vec![
-        [2., 3., 4.],
-        [1., 2., 3.],
-        [8., 9., 10.],
-        [4., 7., 10.],
-        [1., 6., 11.],
-        [2., 4., 8.],
-    ],
-        vec![
-            5.,
-            4.,
-            11.,
-            13.,
-            16.,
-            16.,
-        ], 1000);
+    let mut p = Perceptron::new([[0., 0.]], 0.);
+    let inputs = vec![
+        [1., 2.],
+        [4., 5.],
+        [9., 10.],
+        [1., 4.],
+        [0.5, 1.],
+        [2., 6.],
+        [1., 7.],
+    ];
+    let targets = &vec![
+        3.,
+        6.,
+        11.,
+        7.,
+        1.5,
+        10.,
+        13.,
+    ];
+    p.fit(
+        &inputs,
+        &targets,
+        1100,
+    );
     println!("{:?}", p.weights);
 
-    println!("{}", p.predict([
-        8.,
-        16.,
-        24.,
-    ]));
+    println!("{}", p.predict([8., 16.]));
 }
