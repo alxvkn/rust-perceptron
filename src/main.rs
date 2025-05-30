@@ -1,3 +1,7 @@
+use std::ops::{AddAssign, Mul};
+
+use rand::prelude::Distribution;
+use rand::distr::StandardUniform;
 use num_traits::Float;
 
 struct Perceptron<FType, const NLAYERS: usize, const NINPUTS: usize> where FType: Float {
@@ -6,7 +10,10 @@ struct Perceptron<FType, const NLAYERS: usize, const NINPUTS: usize> where FType
 }
 
 impl<FType, const NLAYERS: usize, const NINPUTS: usize> Perceptron<FType, NLAYERS, NINPUTS>
-where FType: From<f64> + Float + std::ops::AddAssign + std::ops::Mul {
+where
+    FType: Float + AddAssign + Mul<FType, Output = FType>,
+    StandardUniform: Distribution<FType>
+{
     fn new(weights: [[FType; NINPUTS]; NLAYERS], bias: FType) -> Self {
         return Perceptron {
             weights: weights,
@@ -19,7 +26,7 @@ where FType: From<f64> + Float + std::ops::AddAssign + std::ops::Mul {
     }
 
     fn fit(&mut self, inputs: Vec<[FType; NINPUTS]>, targets: Vec<FType>, iterations: u32) {
-        self.bias = rand::random::<f64>().into();
+        self.bias = rand::random::<FType>().into();
 
         for _ in 0..iterations {
             for inputs_index in 0..inputs.len() {
@@ -31,7 +38,7 @@ where FType: From<f64> + Float + std::ops::AddAssign + std::ops::Mul {
                 let prediction = self.activation_function(net_input);
 
                 for i in 0..NINPUTS {
-                    let weight_correction = (targets[inputs_index] - prediction) * 0.01.into();
+                    let weight_correction = (targets[inputs_index] - prediction) * FType::from(0.01).unwrap();
                     self.weights[0][i] += weight_correction * inputs[inputs_index][i];
                     self.bias += weight_correction;
                 }
