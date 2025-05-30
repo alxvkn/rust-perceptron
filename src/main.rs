@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::ops::{AddAssign, Mul};
 
 use num_traits::Float;
@@ -14,7 +15,7 @@ where
 
 impl<FType, const NLAYERS: usize, const NINPUTS: usize> Perceptron<FType, NLAYERS, NINPUTS>
 where
-    FType: Float + AddAssign + Mul<FType, Output = FType> + std::fmt::Display,
+    FType: Float + AddAssign + Mul<FType, Output = FType> + std::fmt::Display + std::fmt::Debug,
     StandardUniform: Distribution<FType>,
 {
     fn new(weights: [[FType; NINPUTS]; NLAYERS], bias: FType) -> Self {
@@ -37,7 +38,7 @@ where
             }
         }
 
-        for i in 0..iterations {
+        'outer: for i in 0..iterations {
             // std::thread::sleep(std::time::Duration::from_millis(2));
 
             for (example, &target) in examples.iter().zip(targets) {
@@ -52,7 +53,7 @@ where
                 println!("error = {error:+}");
                 if error == FType::from(0.).unwrap() {
                     println!("got zero error at iteration #{i}");
-                    return;
+                    break 'outer;
                 }
 
                 for (&input, weight) in example.iter().zip(&mut self.weights[0]) {
@@ -63,6 +64,7 @@ where
                 }
             }
         }
+        println!("finished training with the following weights {:?}\n", self.weights);
     }
 
     fn predict(&self, inputs: [FType; NINPUTS]) -> FType {
@@ -101,7 +103,20 @@ fn main() {
         &targets,
         1100,
     );
-    println!("{:?}", p.weights);
 
-    println!("{}", p.predict([8., 16.]));
+    loop {
+        print!("enter two numbers of a progression: ");
+        std::io::stdout().flush().unwrap();
+        let mut input = String::new();
+        let _ = std::io::stdin().read_line(&mut input);
+        let numbers: Result<Vec<f64>, _> = input.split_whitespace().map(|s| s.parse()).collect();
+
+        match numbers {
+            Ok(nums) if nums.len() == 2 => {
+                println!("prediction for the next element is {}\n", p.predict([nums[0], nums[1]]));
+            },
+            _ => panic!()
+        }
+    }
+
 }
