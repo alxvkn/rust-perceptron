@@ -1,7 +1,7 @@
 // use std::io::Write;
 use std::ops::{AddAssign, Mul};
 
-use iced::widget::{button, column, text, Column};
+use iced::widget::{column, text, Column};
 use iced::Alignment::Center;
 use num_traits::Float;
 use rand::distr::StandardUniform;
@@ -33,12 +33,12 @@ where
         net_input
     }
 
-    fn fit(&mut self, examples: &Vec<[FType; NINPUTS]>, targets: &Vec<FType>, iterations: u32) {
-        self.bias = rand::random::<FType>().into();
+    fn fit(&mut self, examples: &[[FType; NINPUTS]], targets: &[FType], iterations: u32) {
+        self.bias = rand::random::<FType>();
 
         for layer in &mut self.weights {
             for weight in layer {
-                *weight = rand::random::<FType>().into();
+                *weight = rand::random::<FType>();
             }
         }
 
@@ -78,7 +78,7 @@ where
             net_input += input * weight;
         }
 
-        return self.activation_function(net_input);
+        self.activation_function(net_input)
     }
 }
 
@@ -107,7 +107,7 @@ impl Default for Window {
             [2., 6.],
             [1., 7.],
         ];
-        let targets = &vec![
+        let targets = vec![
             3.,
             6.,
             11.,
@@ -122,8 +122,8 @@ impl Default for Window {
         Window {
             p,
             prediction: 0.,
-            first_value: String::from("0"),
-            second_value: String::from("0"),
+            first_value: "".to_owned(),
+            second_value: "".to_owned(),
         }
     }
 }
@@ -131,8 +131,8 @@ impl Default for Window {
 impl Window {
     pub fn view(&self) -> Column<Message> {
         column![
-            iced::widget::text_input("first", &self.first_value).on_input(Message::FirstInputChanged),
-            iced::widget::text_input("second", &self.second_value).on_input(Message::SecondInputChanged),
+            iced::widget::text_input("0", &self.first_value).on_input(Message::FirstInputChanged),
+            iced::widget::text_input("0", &self.second_value).on_input(Message::SecondInputChanged),
 
             // We show the value of the counter here
             text(self.prediction).size(50),
@@ -149,14 +149,14 @@ impl Window {
                 self.prediction = self.p.predict([
                     self.first_value.parse().unwrap_or(0.),
                     self.second_value.parse().unwrap_or(0.),
-                ]);
+                ]).round();
             },
             Message::SecondInputChanged(value) => {
                 self.second_value = value;
                 self.prediction = self.p.predict([
                     self.first_value.parse().unwrap_or(0.),
                     self.second_value.parse().unwrap_or(0.),
-                ]);
+                ]).round();
             }
         }
     }
@@ -173,7 +173,7 @@ fn main() {
         [2., 6.],
         [1., 7.],
     ];
-    let targets = &vec![
+    let targets = vec![
         3.,
         6.,
         11.,
