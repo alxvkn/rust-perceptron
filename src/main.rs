@@ -1,12 +1,12 @@
 // use std::io::Write;
 use std::ops::{AddAssign, Mul};
 
-use iced::widget::{column, text, Column};
 use iced::Alignment::Center;
+use iced::Event;
+use iced::widget::{Column, column, text};
 use num_traits::Float;
 use rand::distr::StandardUniform;
 use rand::prelude::Distribution;
-
 
 struct Perceptron<FType, const NLAYERS: usize, const NINPUTS: usize>
 where
@@ -22,10 +22,7 @@ where
     StandardUniform: Distribution<FType>,
 {
     fn new(weights: [[FType; NINPUTS]; NLAYERS], bias: FType) -> Self {
-        Perceptron {
-            weights,
-            bias,
-        }
+        Perceptron { weights, bias }
     }
 
     fn activation_function(&self, net_input: FType) -> FType {
@@ -68,7 +65,10 @@ where
                 }
             }
         }
-        println!("finished training with the following weights {:?}\n", self.weights);
+        println!(
+            "finished training with the following weights {:?}\n",
+            self.weights
+        );
     }
 
     fn predict(&self, inputs: [FType; NINPUTS]) -> FType {
@@ -94,6 +94,7 @@ pub enum Message {
     // Predict,
     FirstInputChanged(String),
     SecondInputChanged(String),
+    Event(iced::Event),
 }
 
 impl Default for Window {
@@ -107,16 +108,11 @@ impl Default for Window {
             [2., 6.],
             [1., 7.],
         ];
-        let targets = vec![
-            3.,
-            6.,
-            11.,
-            7.,
-            1.5,
-            10.,
-            13.,
-        ];
-        let mut p = Perceptron { weights: [[0., 0.]], bias: 0. };
+        let targets = vec![3., 6., 11., 7., 1.5, 10., 13.];
+        let mut p = Perceptron {
+            weights: [[0., 0.]],
+            bias: 0.,
+        };
         p.fit(&inputs, &targets, 1100);
 
         Window {
@@ -133,13 +129,17 @@ impl Window {
         column![
             iced::widget::text_input("0", &self.first_value).on_input(Message::FirstInputChanged),
             iced::widget::text_input("0", &self.second_value).on_input(Message::SecondInputChanged),
-
             // We show the value of the counter here
             text(self.prediction).size(50),
-        ].align_x(Center)
+        ]
+            .align_x(Center)
     }
 
-    pub fn update(&mut self, message: Message) {
+    pub fn subscription(&self) -> iced::Subscription<Message> {
+        iced::event::listen().map(Message::Event)
+    }
+
+    pub fn update(&mut self, message: Message) -> iced::Task<Message> {
         match message {
             // Message::Predict => {
             //     self.prediction = self.p.predict([self.first_value.parse().unwrap(), self.second_value.parse().unwrap()]);
@@ -150,45 +150,63 @@ impl Window {
                     self.first_value.parse().unwrap_or(0.),
                     self.second_value.parse().unwrap_or(0.),
                 ]).round();
-            },
+                iced::Task::none()
+            }
             Message::SecondInputChanged(value) => {
                 self.second_value = value;
                 self.prediction = self.p.predict([
                     self.first_value.parse().unwrap_or(0.),
                     self.second_value.parse().unwrap_or(0.),
                 ]).round();
+                iced::Task::none()
             }
+            Message::Event(event) => match event {
+                Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                    key: iced::keyboard::Key::Named(iced::keyboard::key::Named::Tab),
+                    modifiers,
+                    ..
+                }) => {
+                    if modifiers.shift() {
+                        iced::widget::focus_previous()
+                    } else {
+                        iced::widget::focus_next()
+                    }
+                }
+                _ => iced::Task::none(),
+            },
         }
     }
 }
 
 fn main() {
-    let mut p = Perceptron::new([[0., 0.]], 0.);
-    let inputs = vec![
-        [1., 2.],
-        [4., 5.],
-        [9., 10.],
-        [1., 4.],
-        [0.5, 1.],
-        [2., 6.],
-        [1., 7.],
-    ];
-    let targets = vec![
-        3.,
-        6.,
-        11.,
-        7.,
-        1.5,
-        10.,
-        13.,
-    ];
-    p.fit(
-        &inputs,
-        &targets,
-        1100,
-    );
+    // let mut p = Perceptron::new([[0., 0.]], 0.);
+    // let inputs = vec![
+    //     [1., 2.],
+    //     [4., 5.],
+    //     [9., 10.],
+    //     [1., 4.],
+    //     [0.5, 1.],
+    //     [2., 6.],
+    //     [1., 7.],
+    // ];
+    // let targets = vec![
+    //     3.,
+    //     6.,
+    //     11.,
+    //     7.,
+    //     1.5,
+    //     10.,
+    //     13.,
+    // ];
+    // p.fit(
+    //     &inputs,
+    //     &targets,
+    //     1100,
+    // );
 
-    let _ = iced::run("hi", Window::update, Window::view);
+    let _ = iced::application("hi", Window::update, Window::view)
+        .subscription(Window::subscription)
+        .run();
 
     // loop {
     //     print!("enter two numbers of a progression: ");
@@ -204,5 +222,4 @@ fn main() {
     //         _ => panic!()
     //     }
     // }
-
 }
