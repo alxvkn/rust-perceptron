@@ -1,9 +1,12 @@
-use std::io::Write;
+// use std::io::Write;
 use std::ops::{AddAssign, Mul};
 
+use iced::widget::{button, column, text, Column};
+use iced::Alignment::Center;
 use num_traits::Float;
 use rand::distr::StandardUniform;
 use rand::prelude::Distribution;
+
 
 struct Perceptron<FType, const NLAYERS: usize, const NINPUTS: usize>
 where
@@ -26,6 +29,7 @@ where
     }
 
     fn activation_function(&self, net_input: FType) -> FType {
+        // net_input.max(FType::from(0.).unwrap())
         net_input
     }
 
@@ -78,6 +82,86 @@ where
     }
 }
 
+struct Window {
+    p: Perceptron<f64, 1, 2>,
+    prediction: f64,
+    first_value: String,
+    second_value: String,
+}
+
+#[derive(Debug, Clone)]
+pub enum Message {
+    // Predict,
+    FirstInputChanged(String),
+    SecondInputChanged(String),
+}
+
+impl Default for Window {
+    fn default() -> Self {
+        let inputs = vec![
+            [1., 2.],
+            [4., 5.],
+            [9., 10.],
+            [1., 4.],
+            [0.5, 1.],
+            [2., 6.],
+            [1., 7.],
+        ];
+        let targets = &vec![
+            3.,
+            6.,
+            11.,
+            7.,
+            1.5,
+            10.,
+            13.,
+        ];
+        let mut p = Perceptron { weights: [[0., 0.]], bias: 0. };
+        p.fit(&inputs, &targets, 1100);
+
+        Window {
+            p,
+            prediction: 0.,
+            first_value: String::from("0"),
+            second_value: String::from("0"),
+        }
+    }
+}
+
+impl Window {
+    pub fn view(&self) -> Column<Message> {
+        column![
+            iced::widget::text_input("first", &self.first_value).on_input(Message::FirstInputChanged),
+            iced::widget::text_input("second", &self.second_value).on_input(Message::SecondInputChanged),
+
+            // We show the value of the counter here
+            text(self.prediction).size(50),
+        ].align_x(Center)
+    }
+
+    pub fn update(&mut self, message: Message) {
+        match message {
+            // Message::Predict => {
+            //     self.prediction = self.p.predict([self.first_value.parse().unwrap(), self.second_value.parse().unwrap()]);
+            // },
+            Message::FirstInputChanged(value) => {
+                self.first_value = value;
+                self.prediction = self.p.predict([
+                    self.first_value.parse().unwrap_or(0.),
+                    self.second_value.parse().unwrap_or(0.),
+                ]);
+            },
+            Message::SecondInputChanged(value) => {
+                self.second_value = value;
+                self.prediction = self.p.predict([
+                    self.first_value.parse().unwrap_or(0.),
+                    self.second_value.parse().unwrap_or(0.),
+                ]);
+            }
+        }
+    }
+}
+
 fn main() {
     let mut p = Perceptron::new([[0., 0.]], 0.);
     let inputs = vec![
@@ -104,19 +188,21 @@ fn main() {
         1100,
     );
 
-    loop {
-        print!("enter two numbers of a progression: ");
-        std::io::stdout().flush().unwrap();
-        let mut input = String::new();
-        let _ = std::io::stdin().read_line(&mut input);
-        let numbers: Result<Vec<f64>, _> = input.split_whitespace().map(|s| s.parse()).collect();
+    let _ = iced::run("hi", Window::update, Window::view);
 
-        match numbers {
-            Ok(nums) if nums.len() == 2 => {
-                println!("prediction for the next element is {}\n", p.predict([nums[0], nums[1]]));
-            },
-            _ => panic!()
-        }
-    }
+    // loop {
+    //     print!("enter two numbers of a progression: ");
+    //     std::io::stdout().flush().unwrap();
+    //     let mut input = String::new();
+    //     let _ = std::io::stdin().read_line(&mut input);
+    //     let numbers: Result<Vec<f64>, _> = input.split_whitespace().map(|s| s.parse()).collect();
+    //
+    //     match numbers {
+    //         Ok(nums) if nums.len() == 2 => {
+    //             println!("prediction for the next element is {}\n", p.predict([nums[0], nums[1]]));
+    //         },
+    //         _ => panic!()
+    //     }
+    // }
 
 }
