@@ -22,8 +22,7 @@ where
 
 impl<FType, const NLAYERS: usize, const NINPUTS: usize> Perceptron<FType, NLAYERS, NINPUTS>
 where
-    FType:
-        Float + AddAssign + Mul<FType, Output = FType> + Display + Debug + Sum,
+    FType: Float + AddAssign + Mul<FType, Output = FType> + Display + Debug + Sum,
     StandardUniform: Distribution<FType>,
 {
     fn activation_function(&self, net_input: FType) -> FType {
@@ -69,11 +68,11 @@ where
     fn predict(&self, inputs: &[FType; NINPUTS]) -> FType {
         self.activation_function(
             self.bias
-            + inputs
-                .iter()
-                .zip(self.weights[0])
-                .map(|(&input, weight)| input * weight)
-                .sum()
+                + inputs
+                    .iter()
+                    .zip(self.weights[0])
+                    .map(|(&input, weight)| input * weight)
+                    .sum(),
         )
     }
 }
@@ -128,7 +127,7 @@ impl Window {
             // We show the value of the counter here
             text(&self.prediction).size(50),
         ]
-            .align_x(Center)
+        .align_x(Center)
     }
 
     pub fn subscription(&self) -> iced::Subscription<Message> {
@@ -142,18 +141,26 @@ impl Window {
             // },
             Message::FirstInputChanged(value) => {
                 self.first_value = value;
-                self.prediction = self.p.predict(&[
-                    self.first_value.parse().unwrap_or(0.),
-                    self.second_value.parse().unwrap_or(0.),
-                ]).round().to_string();
+                self.prediction = self
+                    .p
+                    .predict(&[
+                        self.first_value.parse().unwrap_or(0.),
+                        self.second_value.parse().unwrap_or(0.),
+                    ])
+                    .round()
+                    .to_string();
                 iced::Task::none()
             }
             Message::SecondInputChanged(value) => {
                 self.second_value = value;
-                self.prediction = self.p.predict(&[
-                    self.first_value.parse().unwrap_or(0.),
-                    self.second_value.parse().unwrap_or(0.),
-                ]).round().to_string();
+                self.prediction = self
+                    .p
+                    .predict(&[
+                        self.first_value.parse().unwrap_or(0.),
+                        self.second_value.parse().unwrap_or(0.),
+                    ])
+                    .round()
+                    .to_string();
                 iced::Task::none()
             }
             Message::Event(event) => match event {
@@ -178,20 +185,24 @@ fn iced_main() {
     let _ = iced::application(
         |w: &Window| {
             let strings = [&w.first_value, &w.second_value, &w.prediction];
-            strings.iter()
-                .map(|s| if s.is_empty() { "0" } else { s } )
+            strings
+                .iter()
+                .map(|s| if s.is_empty() { "0" } else { s })
                 .collect::<Vec<&str>>()
                 .join(", ")
         },
         Window::update,
-        Window::view
+        Window::view,
     )
-        .subscription(Window::subscription)
-        .window(iced::window::Settings {
-            size: iced::Size { width: 200., height: 200. },
-            ..Default::default()
-        })
-        .run();
+    .subscription(Window::subscription)
+    .window(iced::window::Settings {
+        size: iced::Size {
+            width: 200.,
+            height: 200.,
+        },
+        ..Default::default()
+    })
+    .run();
 }
 
 fn cli_main() {
@@ -208,20 +219,8 @@ fn cli_main() {
         [2., 6.],
         [1., 7.],
     ];
-    let targets = vec![
-        3.,
-        6.,
-        11.,
-        7.,
-        1.5,
-        10.,
-        13.,
-    ];
-    p.fit(
-        &inputs,
-        &targets,
-        1100,
-    );
+    let targets = vec![3., 6., 11., 7., 1.5, 10., 13.];
+    p.fit(&inputs, &targets, 1100);
 
     loop {
         print!("enter two numbers of a progression: ");
@@ -232,9 +231,12 @@ fn cli_main() {
 
         match numbers {
             Ok(nums) if nums.len() == 2 => {
-                println!("prediction for the next element is {}\n", p.predict(&[nums[0], nums[1]]));
-            },
-            _ => panic!()
+                println!(
+                    "prediction for the next element is {}\n",
+                    p.predict(&[nums[0], nums[1]])
+                );
+            }
+            _ => panic!(),
         }
     }
 }
