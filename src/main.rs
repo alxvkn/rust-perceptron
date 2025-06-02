@@ -176,7 +176,13 @@ impl Window {
 
 fn iced_main() {
     let _ = iced::application(
-        "hi",
+        |w: &Window| {
+            let strings = [&w.first_value, &w.second_value, &w.prediction];
+            strings.iter()
+                .map(|s| if s.is_empty() { "0" } else { s } )
+                .collect::<Vec<&str>>()
+                .join(", ")
+        },
         Window::update,
         Window::view
     )
