@@ -197,8 +197,8 @@ fn iced_main() {
     .subscription(Window::subscription)
     .window(iced::window::Settings {
         size: iced::Size {
-            width: 200.,
-            height: 200.,
+            width: 300.,
+            height: 300.,
         },
         ..Default::default()
     })
@@ -242,8 +242,8 @@ fn cli_main() {
 }
 
 fn main() {
-    if std::env::args().last() == Some("--cli".into()) {
-        return cli_main();
+    if std::env::args().next_back() == Some("--cli".into()) {
+        cli_main()
     } else {
         iced_main();
     }
