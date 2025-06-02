@@ -1,4 +1,7 @@
-// use std::io::Write;
+#![windows_subsystem = "windows"]
+use std::fmt::{Debug, Display};
+use std::io::Write;
+use std::iter::Sum;
 use std::ops::{AddAssign, Mul};
 
 use iced::Alignment::Center;
@@ -7,6 +10,7 @@ use iced::widget::{Column, column, text};
 use num_traits::Float;
 use rand::distr::StandardUniform;
 use rand::prelude::Distribution;
+use rand::random;
 
 struct Perceptron<FType, const NLAYERS: usize, const NINPUTS: usize>
 where
@@ -18,38 +22,29 @@ where
 
 impl<FType, const NLAYERS: usize, const NINPUTS: usize> Perceptron<FType, NLAYERS, NINPUTS>
 where
-    FType: Float + AddAssign + Mul<FType, Output = FType> + std::fmt::Display + std::fmt::Debug,
+    FType:
+        Float + AddAssign + Mul<FType, Output = FType> + Display + Debug + Sum,
     StandardUniform: Distribution<FType>,
 {
-    fn new(weights: [[FType; NINPUTS]; NLAYERS], bias: FType) -> Self {
-        Perceptron { weights, bias }
-    }
-
     fn activation_function(&self, net_input: FType) -> FType {
         // net_input.max(FType::from(0.).unwrap())
         net_input
     }
 
     fn fit(&mut self, examples: &[[FType; NINPUTS]], targets: &[FType], iterations: u32) {
-        self.bias = rand::random::<FType>();
+        self.bias = random::<FType>();
 
-        for layer in &mut self.weights {
-            for weight in layer {
-                *weight = rand::random::<FType>();
-            }
-        }
+        self.weights.iter_mut().for_each(|layer| {
+            layer
+                .iter_mut()
+                .for_each(|weight| *weight = random::<FType>())
+        });
 
         'outer: for i in 0..iterations {
             // std::thread::sleep(std::time::Duration::from_millis(2));
 
             for (example, &target) in examples.iter().zip(targets) {
-                let mut net_input = self.bias;
-
-                for (&input, weight) in example.iter().zip(self.weights[0]) {
-                    net_input += input * weight;
-                }
-
-                let prediction = self.activation_function(net_input);
+                let prediction = self.predict(example);
                 let error = target - prediction;
                 println!("error = {error:+}");
                 if error == FType::from(0.).unwrap() {
@@ -71,20 +66,21 @@ where
         );
     }
 
-    fn predict(&self, inputs: [FType; NINPUTS]) -> FType {
-        let mut net_input = self.bias;
-
-        for (&input, weight) in inputs.iter().zip(self.weights[0]) {
-            net_input += input * weight;
-        }
-
-        self.activation_function(net_input)
+    fn predict(&self, inputs: &[FType; NINPUTS]) -> FType {
+        self.activation_function(
+            self.bias
+            + inputs
+                .iter()
+                .zip(self.weights[0])
+                .map(|(&input, weight)| input * weight)
+                .sum()
+        )
     }
 }
 
 struct Window {
     p: Perceptron<f64, 1, 2>,
-    prediction: f64,
+    prediction: String,
     first_value: String,
     second_value: String,
 }
@@ -117,7 +113,7 @@ impl Default for Window {
 
         Window {
             p,
-            prediction: 0.,
+            prediction: "".to_owned(),
             first_value: "".to_owned(),
             second_value: "".to_owned(),
         }
@@ -130,7 +126,7 @@ impl Window {
             iced::widget::text_input("0", &self.first_value).on_input(Message::FirstInputChanged),
             iced::widget::text_input("0", &self.second_value).on_input(Message::SecondInputChanged),
             // We show the value of the counter here
-            text(self.prediction).size(50),
+            text(&self.prediction).size(50),
         ]
             .align_x(Center)
     }
@@ -146,18 +142,18 @@ impl Window {
             // },
             Message::FirstInputChanged(value) => {
                 self.first_value = value;
-                self.prediction = self.p.predict([
+                self.prediction = self.p.predict(&[
                     self.first_value.parse().unwrap_or(0.),
                     self.second_value.parse().unwrap_or(0.),
-                ]).round();
+                ]).round().to_string();
                 iced::Task::none()
             }
             Message::SecondInputChanged(value) => {
                 self.second_value = value;
-                self.prediction = self.p.predict([
+                self.prediction = self.p.predict(&[
                     self.first_value.parse().unwrap_or(0.),
                     self.second_value.parse().unwrap_or(0.),
-                ]).round();
+                ]).round().to_string();
                 iced::Task::none()
             }
             Message::Event(event) => match event {
@@ -178,48 +174,69 @@ impl Window {
     }
 }
 
-fn main() {
-    // let mut p = Perceptron::new([[0., 0.]], 0.);
-    // let inputs = vec![
-    //     [1., 2.],
-    //     [4., 5.],
-    //     [9., 10.],
-    //     [1., 4.],
-    //     [0.5, 1.],
-    //     [2., 6.],
-    //     [1., 7.],
-    // ];
-    // let targets = vec![
-    //     3.,
-    //     6.,
-    //     11.,
-    //     7.,
-    //     1.5,
-    //     10.,
-    //     13.,
-    // ];
-    // p.fit(
-    //     &inputs,
-    //     &targets,
-    //     1100,
-    // );
-
-    let _ = iced::application("hi", Window::update, Window::view)
+fn iced_main() {
+    let _ = iced::application(
+        "hi",
+        Window::update,
+        Window::view
+    )
         .subscription(Window::subscription)
+        .window(iced::window::Settings {
+            size: iced::Size { width: 200., height: 200. },
+            ..Default::default()
+        })
         .run();
+}
 
-    // loop {
-    //     print!("enter two numbers of a progression: ");
-    //     std::io::stdout().flush().unwrap();
-    //     let mut input = String::new();
-    //     let _ = std::io::stdin().read_line(&mut input);
-    //     let numbers: Result<Vec<f64>, _> = input.split_whitespace().map(|s| s.parse()).collect();
-    //
-    //     match numbers {
-    //         Ok(nums) if nums.len() == 2 => {
-    //             println!("prediction for the next element is {}\n", p.predict([nums[0], nums[1]]));
-    //         },
-    //         _ => panic!()
-    //     }
-    // }
+fn cli_main() {
+    let mut p = Perceptron {
+        weights: [[0., 0.]],
+        bias: 0.,
+    };
+    let inputs = vec![
+        [1., 2.],
+        [4., 5.],
+        [9., 10.],
+        [1., 4.],
+        [0.5, 1.],
+        [2., 6.],
+        [1., 7.],
+    ];
+    let targets = vec![
+        3.,
+        6.,
+        11.,
+        7.,
+        1.5,
+        10.,
+        13.,
+    ];
+    p.fit(
+        &inputs,
+        &targets,
+        1100,
+    );
+
+    loop {
+        print!("enter two numbers of a progression: ");
+        std::io::stdout().flush().unwrap();
+        let mut input = String::new();
+        let _ = std::io::stdin().read_line(&mut input);
+        let numbers: Result<Vec<f64>, _> = input.split_whitespace().map(|s| s.parse()).collect();
+
+        match numbers {
+            Ok(nums) if nums.len() == 2 => {
+                println!("prediction for the next element is {}\n", p.predict(&[nums[0], nums[1]]));
+            },
+            _ => panic!()
+        }
+    }
+}
+
+fn main() {
+    if std::env::args().last() == Some("--cli".into()) {
+        return cli_main();
+    } else {
+        iced_main();
+    }
 }
